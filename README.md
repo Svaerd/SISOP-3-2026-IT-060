@@ -54,6 +54,8 @@ if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
 
 Untuk mendapatkan koneksi yang stabil dan terurut (*reliable*), program menggunakan protokol TCP yang direpresentasikan dengan flag `SOCK_STREAM` saat melakukan pembuatan fungsi `socket()`. Fungsi `connect()` akan memulai skema *Three-way Handshake* milik TCP. Jika server (`wired.c`) belum menjalankan fungsi `listen()` dan `accept()`, maka fungsi `connect()` ini akan mengembalikan nilai `< 0` dan menolak klien masuk.
 
+<img src="Attachments/Pasted image 20260504000405.png" alt="Pasted image 20260504000405">
+
 #### **2. Unit NAVI harus mampu menjalankan dua fungsi secara asinkron**
 
 `navi.c` harus bisa mengetik pesan (mengirim) dan menerima pesan baru di saat yang bersamaan tanpa saling menunggu atau terblokir.
@@ -74,6 +76,8 @@ while (1) {
 ```
 
 Karena dilarang menggunakan `fork()`, asinkronitas ini dipecahkan menggunakan **Multithreading** (`pthread`). *Thread* utama (*main thread*) akan berhenti sementara/terblokir pada fungsi `fgets()` saat menunggu pengguna mengetik. Di latar belakang, *thread* kedua (`recv_thread`) yang memuat fungsi `receive_messages` akan terus berputar memantau `recv()`. Jika ada pesan masuk dari server, *thread* ini akan langsung mencetaknya ke layar tanpa mengganggu proses mengetik pengguna.
+
+<img src="Attachments/Pasted image 20260504000543.png" alt="Pasted image 20260504000543">
 
 #### **3. Server pusat The Wired dituntut untuk,**
 - memiliki skalabilitas tinggi
@@ -141,6 +145,8 @@ if (pkt.type == CONNECT_REQ) {
 
 Sistem menjaga integritas unik ini melalui validasi di level server. Saat paket registrasi pertama kali mendarat (`CONNECT_REQ`), server melakukan *looping* komparasi string (`strcmp`) terhadap *array* data struktur klien. Jika nama tersebut sudah tercatat pada klien yang soketnya aktif (`!= 0`), server langsung membalas dengan paket penolakan dan memutus paksa jalur TCP tersebut.
 
+<img src="Attachments/Pasted image 20260504000642.png" alt="Pasted image 20260504000642">
+
 #### **5. Distribusi informasi di dalam The Wired harus bersifat kolektif dan menyeluruh.**
 
 ```c
@@ -157,12 +163,16 @@ void broadcast(Packet *pkt, int sender_fd) {
 
 Untuk menyebarkan informasi secara utuh bak ruang *chat* massal, fungsi `broadcast()` melakukan iterasi ke seluruh basis pengguna terhubung di `MAX_CLIENTS`. Filter pengecualian memblokir pengiriman kembali ke `sender_fd` agar pengguna tidak melihat pesan *chat* pantulan dari dirinya sendiri. Aturan tambahan mengecualikan klien berstatus `is_admin == 1` agar Admin/The Knights di dalam server tidak terganggu oleh obrolan entitas biasa.
 
+<img src="Attachments/Pasted image 20260504001059.png" alt="Pasted image 20260504001059">
+
 #### **6. Menyediakan *Admin Console*** 
 untuk entitas pengolaan (The Knights) dengan beberapa fungsi:
 1. Check Active Entities (Users)
 2. Check Server Uptime
 3. Execute Emergency Shutdown
 4. Disconnect
+
+<img src="Attachments/Pasted image 20260504000826.png" alt="Pasted image 20260504000826">
 
 ```c
 // [File: navi.c - Klien] - Tampilan konsol admin
@@ -208,6 +218,13 @@ if (pkt.type == RPC_CMD) {
     Packet res = {RPC_RES, "system", ""};
     sprintf(res.payload, "Active Entities: %d", count);
     send(sd, &res, sizeof(Packet), 0);
+  } else if (strcmp(pkt.payload, "2") == 0) {
+	  write_log("Admin", "RPC_GET_UPTIME");
+	  time_t now = time(NULL);
+	  Packet res = {RPC_RES, "system", ""};
+	  sprintf(res.payload, "Server Uptime: %ld seconds",
+	    now - start_time);
+	  send(sd, &res, sizeof(Packet), 0);
   } else if (strcmp(pkt.payload, "3") == 0) {
     // Matikan server
     Packet res = {SYSTEM_MSG, "system", "Server is shutting down..."};
@@ -245,6 +262,8 @@ void write_log(const char *actor, const char *action) {
 
 Fungsi independen ini dipanggil berulang kali di seluruh perulangan *server*. Fungsi ini mengandalkan standar *File I/O* pada bahasa C dengan flag `"a"` (*Append*) untuk memastikan baris riwayat yang ditulis sebelumnya tidak tertimpa/terhapus (*persistent logging*). Di dalamnya, library `<time.h>` digunakan dengan fungsi `strftime` untuk menghasilkan struktur format baku secara rapi yaitu `[Tahun-Bulan-Hari Jam:Menit:Detik]` agar setiap *log* percakapan atau *log error* sistem memiliki *timestamp* yang akurat.
 
+<img src="Attachments/Pasted image 20260504001153.png" alt="Pasted image 20260504001153">
+
 ### Output
 
 
@@ -255,7 +274,7 @@ Struktur repo pada soal 2 ini lumayan mirip dengan struktur pada soal 1, 2 *prog
 #### **Main Menu**
 Menu ini akan bertindak sebagai gerbang masuk ketika *eternal* mulai terhubung dengan *orion*. Disini terdapat 3 menu: *register, login, & exit*.
 
-[PLACE HOLDER Screenshot]
+<img src="Attachments/Pasted image 20260504001235.png" alt="Pasted image 20260504001235">
 
 ```c
 // [File: eternal.c]
@@ -282,7 +301,7 @@ Program menggunakan `scanf` yang mengembalikan jumlah argumen yang berhasil diba
 #### **Entry Rejection**
 **Komunikasi antara eternal dan orion** sangatlah dalam; *eternal* tidak akan bisa memasuki dunia pertempuran bila *orion* tidak siap menerima komunikasi (client gk bisa start kalau server belum berjalan).
 
-[PLACE HOLDER Screenshot]
+<img src="Attachments/Pasted image 20260504001506.png" alt="Pasted image 20260504001506">
 
 ```c
 // [File: eternal.c]
@@ -316,11 +335,11 @@ Klien `eternal` menggunakan `msgget` dan `shmget` secara ketat **tanpa** _flag_ 
 #### **Register dan Login**
 Para **prajurit** bisa mendaftarkan diri mereka dengan memasukkan *username* dan *password*. Setiap identitas pada dunia ini unik, username yang sudah didaftarkan tidak dapat didaftarkan lagi. Semua data yang ada harus disimpan secara persistent.
 
-[PLACE HOLDER Screenshot]
+<img src="Attachments/Pasted image 20260504001949.png" alt="Pasted image 20260504001949">
 
 Dengan menggunakan identitas yang sudah didaftarkan ini, *eternal* dapat memasuki dunia pertempuran melalui menu *login*.
-
-[PLACE HOLDER Screenshot]
+<img src="Attachments/Pasted image 20260504002051.png" alt="Pasted image 20260504002051">
+<img src="Attachments/Pasted image 20260504002024.png" alt="Pasted image 20260504002024">
 
 ```c
 // [File: orion.c]
@@ -390,6 +409,8 @@ if (!check_user_exists(msg.username, NULL)) {
 
 Properti awal ini (seperti `gold` 150, dan senjata kosong) diinisialisasi secara statis pada `struct PlayerData` saat pembuatan akun di server `orion`. Data tersebut kemudian langsung ditulis ke dalam _database binary_ (`users.dat`) via fungsi `save_user`, sehingga akan selalu di-muat (_loaded_) kembali setiap kali pemain tersebut melakukan _login_.
 
+<img src="Attachments/Pasted image 20260504002727.png" alt="Pasted image 20260504002727">
+
 #### Matchmaking
 Fase matchmaking akan berjalan selama 35 detik, jika dalam 35 detik tidak menemukan lawan, maka prajurit saat ini akan melawan monster (bot).
 
@@ -428,6 +449,8 @@ if (arena_idx == -1) { // Tidak ada lawan, buat room baru
 
 Pemain akan memindai _array_ `arenas` di memori yang dibagikan antar proses (_shared memory_). Jika ada arena bernilai `player_count == 1`, pemain tersebut langsung masuk menjadi P2 dan pertarungan dimulai. Jika tidak ada, pemain menempati arena kosong (`player_count == 0`), menjadikannya P1, dan program akan masuk ke dalam loop `sleep(1)` yang bertindak sebagai _timer/countdown_. Jika `wait_time` menyentuh batas 35 detik dan `player_count` masih 1, permainan akan beralih ke mode melawan BOT.
 
+<video src="Attachments/recording_20260504_002737.mp4" controls></video>
+
 #### Sistem Pertempuran
 - Konsep realtime (bukan turn-based), dapat saling menyerang tanpa harus menunggu (asynchronous)
 - Tekan "a" untuk menyerang
@@ -437,6 +460,8 @@ Pemain akan memindai _array_ `arenas` di memori yang dibagikan antar proses (_sh
 - **Base Health:** 100
 - **Cooldown:** 1 detik sebelum bisa menyerang lagi
 - Tekan "u" untuk Ultimate (hanya bisa dilakukan jika sudah memiliki senjata/weapon)
+
+<video src="Attachments/recording_20260504_003217.mp4" controls></video>
 
 ```c
 // [File: eternal.c]
@@ -479,6 +504,11 @@ setiap prajurit akan terus mendapatkan sebuah pengalaman ketika ia berhasil meny
 - **Damage:** BASE DAMAGE + (total xp / 50) + (total bonus dmg weapon)
 - **Health:** BASE HEALTH + (total xp / 10)
 
+<img src="Attachments/Pasted image 20260504003524.png" alt="Pasted image 20260504003524">
+<img src="Attachments/Pasted image 20260504003543.png" alt="Pasted image 20260504003543">
+<img src="Attachments/Pasted image 20260504003551.png" alt="Pasted image 20260504003551">
+
+
 ```c
 // [File: eternal.c - di dalam loop state utama setelah kalkulasi XP]
 my_data.level = 1 + (my_data.xp / 100);
@@ -492,6 +522,8 @@ Tidak menggunakan struktur data tabel bersarang yang boros, perhitungan level da
 
 #### Monster/Bot
 Bot dimunculkan jika sistem _matchmaking_ habis waktu (35 detik). Bot memiliki mekanik penyerangan independen. Bot memiliki *flat damage* sebesar 15, dan akan menyerang dengan **interval tetap** 2 detik. Bot tidak memiliki sistem *level*, hanya para **prajurit** yang memiliki kemampuan untuk betumbuh menjadi lebih kuat pada dunia ini.
+
+<video src="Attachments/recording_20260504_002737 1.mp4" controls></video>
 
 ```c
 // [File: eternal.c]
@@ -530,23 +562,74 @@ Menggunakan gold yang mereka dapat dari pertempuran, **prajurit** dapat meningka
 - Ketika sudah memiliki senjata, dapat menggunakan Ultimate
 - **Ultimate:** Total Damage * 3
 
+<img src="Attachments/Pasted image 20260504003028.png" alt="Pasted image 20260504003028">
+<img src="Attachments/Pasted image 20260504003023.png" alt="Pasted image 20260504003023">
+
 ```c
 // [File: eternal.c]
-// Menu pembelian senjata di Armory
-if (choice == 1 && my_data.gold >= 100) {
-    my_data.gold -= 100; // Kurangi Gold
-    
-    int new_weapon_dmg = 20; // Contoh damage senjata
-    if (new_weapon_dmg > my_data.max_weapon_dmg) {
-        my_data.max_weapon_dmg = new_weapon_dmg; // Equip otomatis jika lebih besar
+void open_armory() {
+  int choice;
+  while (1) {
+    system("clear");
+    printf("=== ARMORY ===\n");
+    printf("Gold: %d\n\n", my_data.gold);
+    printf("1. Wood Sword      | 100 G  | +5 Dmg\n");
+    printf("2. Iron Sword      | 300 G  | +10 Dmg\n");
+    printf("3. Steel Axe       | 600 G  | +20 Dmg\n");
+    printf("4. Demon Blade     | 1500 G | +30 Dmg\n");
+    printf("5. God Slayer      | 5000 G | +100 Dmg\n");
+    printf("6. Back\nChoice: ");
+
+    if (scanf("%d", &choice) != 1) {
+      int c;
+      while ((c = getchar()) != '\n' && c != EOF)
+        ;
+      continue;
     }
-    
-    // Kirim sinkronisasi ke Orion
-    AuthMsg sync_req = {0};
-    sync_req.msg_type = 4; // Tipe pesan khusus untuk SAVE data
-    sync_req.data = my_data;
-    msgsnd(msgid, &sync_req, sizeof(AuthMsg) - sizeof(long), 0);
-    printf("Senjata berhasil dibeli!\n");
+
+    if (choice == 6)
+      break;
+
+    int price = 0, dmg = 0;
+    switch (choice) {
+    case 1:
+      price = 100;
+      dmg = 5;
+      break;
+    case 2:
+      price = 300;
+      dmg = 10;
+      break;
+    case 3:
+      price = 600;
+      dmg = 20;
+      break;
+    case 4:
+      price = 1500;
+      dmg = 30;
+      break;
+    case 5:
+      price = 5000;
+      dmg = 100;
+      break;
+    default:
+      continue;
+    }
+
+    if (my_data.gold >= price) {
+      my_data.gold -= price;
+      // Otomatis pakai senjata terkuat
+      if (dmg > my_data.max_weapon_dmg)
+        my_data.max_weapon_dmg = dmg;
+
+      printf("\n[Success] Weapon purchased! Max Weapon Dmg is now +%d\n",
+             my_data.max_weapon_dmg);
+      update_player_data(); // Amankan data ke database
+    } else {
+      printf("\n[Failed] Not enough gold!\n");
+    }
+    sleep(1);
+  }
 }
 ```
 
@@ -556,7 +639,10 @@ Ketika pemain memilih senjata, sistem akan memvalidasi apakah properti `gold` me
 #### Match History
 Pada Dunia Eterion, setiap jiwa memiliki ingatan masa lalunya; sistem akan menyimpan catatan pertempuran dari setiap jiwa pada `history_[USERNAME].txt`.
 
-```
+<img src="Attachments/Pasted image 20260504003617.png" alt="Pasted image 20260504003617">
+<img src="Attachments/Pasted image 20260504003624.png" alt="Pasted image 20260504003624">
+
+```c
 // [File: eternal.c]
 // Di dalam fungsi after_battle() atau kalkulasi post-match
 char history_filename[100];
@@ -745,7 +831,7 @@ Skema pembersihan sebelum server melakukan `exit()`.
 }
 ```
 #### Kendala soal1
-- [ ] 
+- [ ] loggin with no username
 
 
 ### Soal2
@@ -904,3 +990,5 @@ Username: Password:
 	- Player 1 & 2 selesai. `arenas[0]` di-reset menjadi kosong (`player_count = 0`).
 	- Player 1 _matchmaking_ lagi. Ia memindai dari indeks awal. Ia melihat `arenas[0]` kosong. Karena syarat ruang kosong terpenuhi lebih dulu, ia langsung mengklaim `arenas[0]` dan menunggu di sana.
 	- Hasilnya: Player 3 menunggu di `arenas[1]`, Player 1 menunggu di `arenas[0]`. Mereka saling "kebutaan" dan akhirnya dua-duanya melawan BOT.
+- [ ] player cant login after logout
+<video src="Attachments/recording_20260504_002531.mp4" controls></video>
